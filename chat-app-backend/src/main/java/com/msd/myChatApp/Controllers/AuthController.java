@@ -37,7 +37,7 @@ public class AuthController {
             }
             return new ResponseEntity<>("User already exists",HttpStatus.BAD_REQUEST);
         }catch (Exception e){
-            System.out.println("Error occured while registering user");
+            System.out.println("Error occurred while registering user");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }

@@ -2,6 +2,7 @@ package com.msd.myChatApp.Services;
 
 import com.msd.myChatApp.Entities.Users;
 import com.msd.myChatApp.Repositories.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,10 +11,10 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class UserDetailServiceImpl implements UserDetailsService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
 
     @Override

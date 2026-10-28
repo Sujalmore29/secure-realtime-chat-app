@@ -4,6 +4,7 @@ import com.msd.myChatApp.Entities.Message;
 import com.msd.myChatApp.Entities.Room;
 import com.msd.myChatApp.PayLoad.MessageRequest;
 import com.msd.myChatApp.Services.RoomServices;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -16,26 +17,39 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 
 @Controller
+@RequiredArgsConstructor
 public class ChatController {
-    @Autowired
-    private RoomServices roomServices;
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
+
+    private final RoomServices roomServices;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @MessageMapping("/sendMessage/{roomId}") //app/sendMessage/roomId
-    @SendTo("/topic/room/{roomId}") //iss pr subscribe krega (server jab push krega msg ko toh yaha pr aajaayega
-    public Message sendMessage(
+    public void sendMessage(
             @DestinationVariable String roomId,
             @RequestBody MessageRequest request,
             Principal principal) {
 
+        if (principal == null) {
+            throw new SecurityException("Authentication required");
+        }
+
+        if (request == null || request.getContent() == null || request.getContent().isBlank()) {
+            throw new IllegalArgumentException("Message content is required");
+        }
+
+        if (request.getContent().length() > 5000) {
+            throw new IllegalArgumentException("Message is too long");
+        }
+
+
         String sender = principal.getName();
 
-        Room room = roomServices.getRoom(request.getRoomId());
+        roomServices.requireMember(roomId, sender);
+        Room room = roomServices.getRoom(roomId);
 
         Message message = new Message();
         message.setSender(sender);
-        message.setContent(request.getContent());
+        message.setContent(request.getContent().trim());
         message.setTimeStamp(LocalDateTime.now());
 
         if(room != null){
@@ -44,7 +58,7 @@ public class ChatController {
         }else{
             throw new RuntimeException("Room Not Found!");
         }
-        return message;
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, message);
     }
 
 }

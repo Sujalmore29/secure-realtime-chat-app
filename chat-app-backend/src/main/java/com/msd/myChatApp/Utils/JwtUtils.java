@@ -35,7 +35,7 @@ public class JwtUtils {
                 .getSubject();
     }
 
-    public boolean validatToken(String token){
+    public boolean validateToken(String token){
         return  !isTokenExpired(token);
     }
 
