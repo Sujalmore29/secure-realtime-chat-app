@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import chatIcon from "../assets/chat.png";
 import toast from 'react-hot-toast';
-import { createRooms, joinChats } from '../services/RoomService';
+import { createRooms, getUser, joinChats } from '../services/RoomService';
 import useChatContext from '../Context/ChatContext';
 import { useNavigate } from 'react-router-dom';
 const JoinCreateChat = () => {
@@ -15,11 +15,22 @@ const JoinCreateChat = () => {
 
     const navigate = useNavigate();
 
+    
     function handleFormInputChange(event){
         setdetail({
             ...detail,
             [event.target.name]:event.target.value
         });
+    }
+
+    function logOut(){
+        localStorage.removeItem("token");
+        navigate("/login");
+    }
+
+    async function checkUsername(){
+        const username = getUser();
+        return username;
     }
 
     function validateForm() {
@@ -35,22 +46,25 @@ const JoinCreateChat = () => {
             try{
                 const token = localStorage.getItem("token")
                 if(token != null){
-                const room = await joinChats(detail.roomId);
-            toast.success("Joined room successfully");
-            setCurrentUser(detail.username);
-            setRoomId(room.roomId);
-            setConnect(true);
-            navigate("/chat");
-            }else{
-                toast.error("Please login again");
-                navigate("/login");
+                    const room = await joinChats(detail.roomId);
+                    toast.success("Joined room successfully");
+                    const username = await checkUsername();
+                    setCurrentUser(username);
+                    setRoomId(room.roomId);
+                    setConnect(true);
+                    navigate("/chat");
+                }else{
+                    toast.error("Please login again");
+                    navigate("/login");
             }
         }catch(error){
-                if(error.status === 400){
-                    toast.error(error.response.data);
+                if(error.status === 403){
+                    toast.error("Your session has expired, please login again");
+                    localStorage.removeItem("token");
+                    navigate("/login");
                 }else{
-                toast.error("Error joining room");
-                console.log(error);
+                    toast.error(error.response.data);
+                    console.log(error);
                 }
             } 
         }
@@ -61,9 +75,10 @@ const JoinCreateChat = () => {
             try{
                 const token = localStorage.getItem("token")
                 if(token != null){
-                const response = await createRooms(detail.roomId)
+                const username = await checkUsername();
+                const response = await createRooms(detail.roomId, username);
                 toast.success("Room created successfully");
-                setCurrentUser(detail.username);
+                setCurrentUser(username);
                 setRoomId(detail.roomId);
                 setConnect(true);
                 navigate("/chat");
@@ -75,7 +90,7 @@ const JoinCreateChat = () => {
                 if(error.status === 400){
                     toast.error("Room already exists");
                 }else{
-                    toast.error("Error creating room");
+                    toast.error("Error creating room" + error);
                 }
             }
         }
@@ -124,6 +139,7 @@ const JoinCreateChat = () => {
             <div className='flex justify-center gap-2'>
                 <button onClick={joinChat}className=' bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500'>Join Room</button>
                 <button onClick={createRoom} className=' bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500'>Create Room</button>
+                <button onClick={logOut}className='bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500'>Log Out</button>
             </div>
         </div>
     </div>

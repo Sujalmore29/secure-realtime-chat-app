@@ -6,16 +6,14 @@ import SockJS from 'sockjs-client';
 import { baseURL } from '../config/AxiosHelper';
 import { Client, Stomp } from '@stomp/stompjs';
 import toast from 'react-hot-toast';
-import { getMessages } from '../services/RoomService';
+import { getMessages, getRoomDetails } from '../services/RoomService';
 import { timeAgo } from '../config/timeAgoMsg';
 import ProfileMenu from '../components/ProfileMenu';
+import RoomMembers from '../components/RoomMembers';
 
 const ChatPage = () => {
 
-    const {roomId,
-        currentUser,
-        connect,setConnect,setCurrentUser,setRoomId
-    } = useChatContext();
+    const {roomId,currentUser,connect,setConnect,setCurrentUser,setRoomId} = useChatContext();
 
     const navigate = useNavigate();
     useEffect(() => {
@@ -29,6 +27,8 @@ const ChatPage = () => {
     const inputRef=useRef(null);
     const chatBoxRef=useRef(null);
     const [stompClient, setStompClient] = useState(null);
+    const [roomDetails, setRoomDetails] = useState(null);
+    const [addMember, setAddMember] = useState(false);
 
     //Reload all previous messages
     useEffect(() => {
@@ -57,6 +57,28 @@ const ChatPage = () => {
     }, [message]);
 
     useEffect(() => {
+        let active = true;
+
+        const loadRoomDetails = async () => {
+            try{
+                const room = await getRoomDetails(roomId);
+                if(active){
+                    setRoomDetails(room);
+                }
+            }catch(error) {
+                toast.error("Error loading room details");
+                console.log("Error loading room details", error);
+            }
+        }
+        if(roomId) {
+            loadRoomDetails();
+        }
+        return () => {
+            active = false;
+        };
+    }, [roomId]);
+
+    useEffect(() => {
         const connectWebSocket = () => {
             const socket = new SockJS(`${baseURL}/chat`) // connection establishment endpoint
             
@@ -73,7 +95,7 @@ const ChatPage = () => {
                     console.log("Message received from topic");
                     const newMessage = JSON.parse(message.body);
                     console.log(newMessage);
-                    setMessage((prev) => [...prev,newMessage]); // prev message array or new message milkr nya array message create krdenge
+                    setMessage((prev) => [...prev,newMessage]); 
                 });
                 
             },(error) => {
@@ -84,6 +106,10 @@ const ChatPage = () => {
             connectWebSocket();
         }
     }, [roomId]);
+
+    const addMemberHandler = () => {
+        setAddMember(!addMember);
+    }
 
     function handleLeaveRoom(){
         stompClient.disconnect();
@@ -113,7 +139,7 @@ const ChatPage = () => {
 
   return (
     <div>
-        <header className='flex fixed justify-around  w-full items-center dark:bg-gray-900 p-2'>
+        <header className='flex fixed justify-around w-full items-center dark:bg-gray-900 p-2'>
         { /* Room Name Container */ }
         <div>
             <h1 className='text-xl font-semibold'>Room : <span>{roomId}</span></h1>
@@ -127,13 +153,24 @@ const ChatPage = () => {
         </div>
 
         { /* Button: Leave Room */ }
-        <div>
-            <button onClick={handleLeaveRoom} className='dark:bg-red-500 dark:hover:bg-red-700 px-3 py-2 rounded-full'>Leave Room</button>
-        </div>
+        <button onClick={handleLeaveRoom} className='dark:bg-red-500 dark:hover:bg-red-700 px-3 py-2 rounded-full'>Leave Room</button>
+        <div className='flex flex-col'></div>
         </header>
 
+        
+
         { /* Chat messages container */}
-        <main ref={chatBoxRef} className='py-20 px-10 w-2/3 dark:bg-gray-700 h-screen mx-auto overflow-auto'>
+            
+            {addMember && (
+            <div className='mt-10 fixed top-20 w-1/6 h-screen overflow-auto'>
+                <RoomMembers
+                    roomId={roomId}
+                    currentUser={currentUser}
+                    ownerUsername={roomDetails.ownerUsername} 
+                />
+            </div>
+           )}
+            <main ref={chatBoxRef} className='py-20 px-10 w-2/3 dark:bg-gray-700 h-screen mx-auto overflow-auto [scrollbar-width:none]'>
             {message.map((message, index) => (
                 <div key={index} className={`flex ${message.sender==currentUser?'justify-end':'justify-start'}`}>
                     <div className={`my-2 ${message.sender==currentUser?'bg-blue-400':'bg-purple-500'} p-2 max-w-xs rounded`}>
@@ -162,9 +199,13 @@ const ChatPage = () => {
                         sendMessage();
                     }
                 }}
-                placeholder='Type your message here...' className='px-5 py-2 h-full w-full dark:bg-gray-900 border dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500'></input>
+                placeholder='Type your message here...' className='px-5 py-2 h-full w-3/4 dark:bg-gray-900 border dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500'></input>
                 <div className='flex gap-2'>
+
+                <button onClick={addMemberHandler} className='dark:bg-blue-500 rounded-full items-center px-3 py-2  dark:hover:bg-blue-600'>Add</button>
+
                 <button className='dark:bg-purple-600 px-3 py-2 flex rounded-full justify-center items-center hover:bg-purple-700'><MdAttachFile /></button>
+
                 <button onClick={sendMessage} className='dark:bg-green-600 px-3 py-2 flex rounded-full justify-center items-center hover:bg-green-700'>
                     <MdSend size={24}/>
                 </button>
